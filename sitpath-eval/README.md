@@ -8,6 +8,10 @@ Minimal evaluation suite for the CVPR paper **"SitPath"**, bundling the componen
 - Baselines: reference SitPath models plus configuration hooks for custom runs.
 - Metrics: accuracy and calibration metrics used in the paper.
 
+## Dependencies
+- Core: `numpy`, `torch`, `pandas`, `tqdm`
+- Standard library: `json`, `pathlib`
+
 ## Quick start (Colab-friendly)
 ```bash
 git clone https://github.com/your-org/sitpath-eval.git
