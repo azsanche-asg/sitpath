@@ -1,12 +1,23 @@
 # sitpath-eval
 
-This repository hosts the evaluation suite for the CVPR paper **"SitPath"**. The package bundles the test harness and helper utilities that researchers can extend when validating SitPath results or adapting the evaluation to new datasets.
+Minimal evaluation suite for the CVPR paper **"SitPath"**, bundling the components needed to reproduce the paper’s reported metrics.
 
-## Getting started
+## Features
+- Datasets: lightweight loaders for SitPath benchmark splits.
+- Tokenizer: shared text preprocessing utilities for prompts and captions.
+- Baselines: reference SitPath models plus configuration hooks for custom runs.
+- Metrics: accuracy and calibration metrics used in the paper.
 
+## Quick start (Colab-friendly)
 ```bash
+git clone https://github.com/your-org/sitpath-eval.git
+cd sitpath-eval
 pip install -e .
 pytest
 ```
 
-The command above installs the package in editable mode and runs the smoke tests to ensure `sitpath_eval` imports correctly.
+## Directory layout
+- `pyproject.toml` – project metadata and dependencies.
+- `README.md` – usage notes and overview.
+- `sitpath_eval/` – library source (datasets, tokenizer, baselines, metrics).
+- `tests/` – smoke tests ensuring the package imports correctly.

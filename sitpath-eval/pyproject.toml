@@ -7,14 +7,34 @@ name = "sitpath-eval"
 version = "0.1.0"
 description = "Evaluation suite for the CVPR SitPath paper."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
   { name = "SitPath Authors" }
 ]
+license = { text = "MIT" }
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
+]
+dependencies = [
+  "torch",
+  "torchvision",
+  "numpy",
+  "pandas",
+  "matplotlib",
+  "scikit-learn",
+  "hydra-core",
+  "tqdm",
+  "rich",
+  "pytest"
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff",
+  "black",
+  "mypy"
 ]
 
 [tool.setuptools.packages.find]
