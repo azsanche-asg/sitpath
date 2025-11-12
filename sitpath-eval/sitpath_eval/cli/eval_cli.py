@@ -9,7 +9,7 @@ from typing import Dict, List
 import numpy as np
 import torch
 
-from sitpath_eval.models import CoordGRU, CoordTransformer, SitPathTransformer, SocialLSTM
+from sitpath_eval.models import CoordGRU, CoordTransformer, SitPathGRU, SitPathTransformer, SocialLSTM
 from sitpath_eval.train.eval_metrics import aggregate_metrics, save_metrics_table
 from sitpath_eval.train.eval_data_efficiency import (
     aggregate_by_fraction,
@@ -25,6 +25,11 @@ from sitpath_eval.train.eval_cross_scene import (
 from sitpath_eval.train.eval_uncertainty import (
     aggregate_uncertainty,
     compute_uncertainty_metrics,
+)
+from sitpath_eval.train.eval_controllability import (
+    aggregate_controllability,
+    apply_edit_rule,
+    controllability_metrics,
 )
 
 
@@ -94,6 +99,16 @@ def build_parser() -> argparse.ArgumentParser:
     unc_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
     unc_parser.add_argument("--samples", type=int, default=20)
     unc_parser.add_argument("--outdir", default="artifacts/tables")
+
+    ctrl_parser = subparsers.add_parser("controllability", help="Constraint controllability metrics.")
+    ctrl_parser.add_argument(
+        "--model",
+        choices=["coord_gru", "sitpath_gru"],
+        default="sitpath_gru",
+    )
+    ctrl_parser.add_argument("--rule", choices=["avoid_front", "keep_right", "slow_down"], default="avoid_front")
+    ctrl_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
+    ctrl_parser.add_argument("--outdir", default="artifacts/tables")
     return parser
 
 
@@ -121,6 +136,7 @@ def make_synthetic_coord_dataset(obs_len: int = 8, pred_len: int = 12, samples: 
 MODEL_REGISTRY = {
     "coord_gru": CoordGRU,
     "coord_transformer": CoordTransformer,
+    "sitpath_gru": SitPathGRU,
     "sitpath_transformer": SitPathTransformer,
     "social_lstm": SocialLSTM,
 }
@@ -183,6 +199,26 @@ def uncertainty_command(args: argparse.Namespace) -> None:
     print(f"[sitpath-eval] Saved uncertainty/diversity results to {out_dir}")
 
 
+def make_synthetic_controllability_data(batch: int = 32, pred_len: int = 12):
+    rng = np.random.default_rng(0)
+    orig = rng.normal(size=(batch, pred_len, 2)).cumsum(axis=1).astype(np.float32)
+    gts = orig + rng.normal(scale=0.1, size=orig.shape).astype(np.float32)
+    return orig, gts
+
+
+def controllability_command(args: argparse.Namespace) -> None:
+    orig, gts = make_synthetic_controllability_data()
+    edited = apply_edit_rule(orig, args.rule)
+    metrics = controllability_metrics(orig, edited, gts, args.rule)
+    aggregated = aggregate_controllability([metrics])
+    out_dir = Path(args.outdir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"controllability_{args.model}_{args.rule}_{args.dataset}.csv"
+    tex_path = out_dir / f"controllability_{args.model}_{args.rule}_{args.dataset}.tex"
+    save_metrics_table(aggregated, csv_path, tex_path)
+    print(f"[sitpath-eval] Saved controllability evaluation to {out_dir}")
+
+
 def main(argv: List[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -194,6 +230,8 @@ def main(argv: List[str] | None = None) -> None:
         cross_scene_command(args)
     elif args.command == "uncertainty":
         uncertainty_command(args)
+    elif args.command == "controllability":
+        controllability_command(args)
     else:
         parser.error("Unknown command")
 
