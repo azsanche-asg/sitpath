@@ -14,6 +14,7 @@ from sitpath_eval.models import (
     SitPathGRU,
     SitPathTransformer,
 )
+from sitpath_eval.models.raster_gru import RasterGRU
 from sitpath_eval.tokens import Vocabulary
 from sitpath_eval.tokens.tokenizer import SitPathTokenizer
 from sitpath_eval.train.fairness import (
@@ -35,6 +36,7 @@ MODEL_SPECS = {
     "coord_transformer": {"cls": CoordTransformer, "kind": "coord"},
     "sitpath_gru": {"cls": SitPathGRU, "kind": "token"},
     "sitpath_transformer": {"cls": SitPathTransformer, "kind": "token"},
+    "raster_gru": {"cls": RasterGRU, "kind": "raster"},
 }
 
 DEFAULT_VOCAB_SIZE = 32
@@ -72,11 +74,18 @@ def make_synthetic_dataset(
         targets = trajectories[:, obs_len:]
         tensor_x = torch.from_numpy(obs)
         tensor_y = torch.from_numpy(targets)
-    else:
+    elif mode == "token":
         obs = rng.integers(0, vocab_size, size=(num_samples, obs_len))
         targets = rng.integers(0, vocab_size, size=(num_samples, pred_len))
         tensor_x = torch.from_numpy(obs.astype(np.int64))
         tensor_y = torch.from_numpy(targets.astype(np.int64))
+    elif mode == "raster":
+        obs = torch.rand(num_samples, obs_len, 3, 32, 32)
+        targets = torch.rand(num_samples, pred_len, 2)
+        tensor_x = obs
+        tensor_y = targets
+    else:
+        raise ValueError(f"Unknown mode {mode}")
     midpoint = num_samples // 2
     train_ds = TensorDataset(tensor_x[:midpoint], tensor_y[:midpoint])
     val_ds = TensorDataset(tensor_x[midpoint:], tensor_y[midpoint:])
@@ -102,7 +111,9 @@ def build_parser() -> argparse.ArgumentParser:
 def train_command(args: argparse.Namespace) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     spec = MODEL_SPECS[args.model]
-    is_token_model = spec["kind"] == "token"
+    kind = spec["kind"]
+    is_token_model = kind == "token"
+    is_raster_model = kind == "raster"
 
     if is_token_model:
         vocab, tokenizer = load_or_build_vocab()
@@ -113,6 +124,13 @@ def train_command(args: argparse.Namespace) -> None:
         model = ModelCls(vocab_size=vocab_size, pred_len=PRED_LEN, obs_len=OBS_LEN).to(device)
         train_ds, val_ds = make_synthetic_dataset(mode="token", vocab_size=vocab_size)
         loss_fn = torch.nn.CrossEntropyLoss()
+    elif is_raster_model:
+        ModelCls = spec["cls"]
+        model = ModelCls(obs_len=OBS_LEN, pred_len=PRED_LEN).to(device)
+        params = model.num_parameters()
+        print(f"[sitpath-eval] Training RasterGRU baseline (model params: {params})")
+        train_ds, val_ds = make_synthetic_dataset(mode="raster")
+        loss_fn = torch.nn.MSELoss()
     else:
         train_ds, val_ds = make_synthetic_dataset()
         ModelCls = spec["cls"]
@@ -122,7 +140,7 @@ def train_command(args: argparse.Namespace) -> None:
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size)
 
-    if args.enforce_parity and not is_token_model:
+    if args.enforce_parity and not (is_token_model or is_raster_model):
         baseline_name = "coord_gru" if args.model != "coord_gru" else "coord_transformer"
         baseline_cls = MODEL_SPECS[baseline_name]["cls"]
         baseline_model = baseline_cls(obs_len=OBS_LEN, pred_len=PRED_LEN)
@@ -166,6 +184,8 @@ def train_command(args: argparse.Namespace) -> None:
             if is_token_model:
                 vocab_size = preds.size(-1)
                 loss = loss_fn(preds.view(-1, vocab_size), targets.view(-1))
+            elif is_raster_model:
+                loss = loss_fn(preds, targets)
             else:
                 loss = loss_fn(preds, targets)
             loss.backward()
@@ -183,7 +203,9 @@ def eval_command(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f"Model checkpoint not found for {args.model}. Run train first.")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     spec = MODEL_SPECS[args.model]
-    is_token_model = spec["kind"] == "token"
+    kind = spec["kind"]
+    is_token_model = kind == "token"
+    is_raster_model = kind == "raster"
 
     if is_token_model:
         vocab, _ = load_or_build_vocab()
@@ -191,6 +213,10 @@ def eval_command(args: argparse.Namespace) -> None:
         _, val_ds = make_synthetic_dataset(mode="token", vocab_size=vocab_size)
         ModelCls = spec["cls"]
         model = ModelCls(vocab_size=vocab_size, pred_len=PRED_LEN, obs_len=OBS_LEN).to(device)
+    elif is_raster_model:
+        _, val_ds = make_synthetic_dataset(mode="raster")
+        ModelCls = spec["cls"]
+        model = ModelCls(obs_len=OBS_LEN, pred_len=PRED_LEN).to(device)
     else:
         _, val_ds = make_synthetic_dataset()
         ModelCls = spec["cls"]
@@ -211,6 +237,9 @@ def eval_command(args: argparse.Namespace) -> None:
                 pred_ids = preds.argmax(dim=-1)
                 preds_list.append(pred_ids.cpu().numpy())
                 targets_list.append(targets.cpu().numpy())
+            elif is_raster_model:
+                preds_list.append(preds.cpu().numpy())
+                targets_list.append(targets.cpu().numpy())
             else:
                 preds_list.append(preds.cpu().numpy())
                 targets_list.append(targets.cpu().numpy())
@@ -220,6 +249,9 @@ def eval_command(args: argparse.Namespace) -> None:
     if is_token_model:
         accuracy = (preds == targets).mean()
         print(f"[sitpath-eval] token eval accuracy={accuracy:.3f}")
+    elif is_raster_model:
+        mse = np.mean((preds - targets) ** 2)
+        print(f"[sitpath-eval] raster eval mse={mse:.4f}")
     else:
         metrics = compute_metrics(preds, targets)
         print(f"[sitpath-eval] eval metrics: {metrics}")
