@@ -11,10 +11,11 @@ from torch.utils.data import DataLoader, TensorDataset
 from sitpath_eval.models import (
     CoordGRU,
     CoordTransformer,
+    RasterGRU,
     SitPathGRU,
     SitPathTransformer,
+    SocialLSTM,
 )
-from sitpath_eval.models.raster_gru import RasterGRU
 from sitpath_eval.tokens import Vocabulary
 from sitpath_eval.tokens.tokenizer import SitPathTokenizer
 from sitpath_eval.train.fairness import (
@@ -37,6 +38,7 @@ MODEL_SPECS = {
     "sitpath_gru": {"cls": SitPathGRU, "kind": "token"},
     "sitpath_transformer": {"cls": SitPathTransformer, "kind": "token"},
     "raster_gru": {"cls": RasterGRU, "kind": "raster"},
+    "social_lstm": {"cls": SocialLSTM, "kind": "social"},
 }
 
 DEFAULT_VOCAB_SIZE = 32
@@ -114,6 +116,7 @@ def train_command(args: argparse.Namespace) -> None:
     kind = spec["kind"]
     is_token_model = kind == "token"
     is_raster_model = kind == "raster"
+    is_social_model = kind == "social"
 
     if is_token_model:
         vocab, tokenizer = load_or_build_vocab()
@@ -131,6 +134,12 @@ def train_command(args: argparse.Namespace) -> None:
         print(f"[sitpath-eval] Training RasterGRU baseline (model params: {params})")
         train_ds, val_ds = make_synthetic_dataset(mode="raster")
         loss_fn = torch.nn.MSELoss()
+    elif is_social_model:
+        ModelCls = spec["cls"]
+        model = ModelCls(obs_len=OBS_LEN, pred_len=PRED_LEN).to(device)
+        print("[sitpath-eval] Training Social-LSTM (tiny) baseline")
+        train_ds, val_ds = make_synthetic_dataset(mode="coord")
+        loss_fn = torch.nn.MSELoss()
     else:
         train_ds, val_ds = make_synthetic_dataset()
         ModelCls = spec["cls"]
@@ -140,7 +149,7 @@ def train_command(args: argparse.Namespace) -> None:
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size)
 
-    if args.enforce_parity and not (is_token_model or is_raster_model):
+    if args.enforce_parity and not (is_token_model or is_raster_model or is_social_model):
         baseline_name = "coord_gru" if args.model != "coord_gru" else "coord_transformer"
         baseline_cls = MODEL_SPECS[baseline_name]["cls"]
         baseline_model = baseline_cls(obs_len=OBS_LEN, pred_len=PRED_LEN)
@@ -186,6 +195,8 @@ def train_command(args: argparse.Namespace) -> None:
                 loss = loss_fn(preds.view(-1, vocab_size), targets.view(-1))
             elif is_raster_model:
                 loss = loss_fn(preds, targets)
+            elif is_social_model:
+                loss = loss_fn(preds, targets)
             else:
                 loss = loss_fn(preds, targets)
             loss.backward()
@@ -206,6 +217,7 @@ def eval_command(args: argparse.Namespace) -> None:
     kind = spec["kind"]
     is_token_model = kind == "token"
     is_raster_model = kind == "raster"
+    is_social_model = kind == "social"
 
     if is_token_model:
         vocab, _ = load_or_build_vocab()
@@ -215,6 +227,10 @@ def eval_command(args: argparse.Namespace) -> None:
         model = ModelCls(vocab_size=vocab_size, pred_len=PRED_LEN, obs_len=OBS_LEN).to(device)
     elif is_raster_model:
         _, val_ds = make_synthetic_dataset(mode="raster")
+        ModelCls = spec["cls"]
+        model = ModelCls(obs_len=OBS_LEN, pred_len=PRED_LEN).to(device)
+    elif is_social_model:
+        _, val_ds = make_synthetic_dataset(mode="coord")
         ModelCls = spec["cls"]
         model = ModelCls(obs_len=OBS_LEN, pred_len=PRED_LEN).to(device)
     else:
@@ -237,9 +253,6 @@ def eval_command(args: argparse.Namespace) -> None:
                 pred_ids = preds.argmax(dim=-1)
                 preds_list.append(pred_ids.cpu().numpy())
                 targets_list.append(targets.cpu().numpy())
-            elif is_raster_model:
-                preds_list.append(preds.cpu().numpy())
-                targets_list.append(targets.cpu().numpy())
             else:
                 preds_list.append(preds.cpu().numpy())
                 targets_list.append(targets.cpu().numpy())
@@ -252,9 +265,13 @@ def eval_command(args: argparse.Namespace) -> None:
     elif is_raster_model:
         mse = np.mean((preds - targets) ** 2)
         print(f"[sitpath-eval] raster eval mse={mse:.4f}")
+    elif is_social_model:
+        metrics = compute_metrics(preds, targets)
+        print(f"[sitpath-eval] social eval metrics: {metrics}")
     else:
         metrics = compute_metrics(preds, targets)
         print(f"[sitpath-eval] eval metrics: {metrics}")
+
 
 
 def main(argv: list[str] | None = None) -> None:
