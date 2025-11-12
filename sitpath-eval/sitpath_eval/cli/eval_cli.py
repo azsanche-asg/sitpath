@@ -38,6 +38,7 @@ from sitpath_eval.train.eval_ablation import (
     save_ablation_table,
     train_and_eval_ablation,
 )
+from sitpath_eval.utils.device import get_device, print_device_info
 
 
 def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
@@ -126,6 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def metrics_command(args: argparse.Namespace) -> None:
+    device = get_device("train")
+    print_device_info(device)
     results = load_metrics_files(args.runs)
     metrics = aggregate_metrics(results)
     out_dir = Path(args.outdir)
@@ -156,6 +159,8 @@ MODEL_REGISTRY = {
 
 
 def data_efficiency_command(args: argparse.Namespace) -> None:
+    device = get_device("train")
+    print_device_info(device)
     fractions = [float(f) for f in args.fractions]
     dataset = make_synthetic_coord_dataset()
     model_cls = MODEL_REGISTRY[args.model]
@@ -175,6 +180,8 @@ def data_efficiency_command(args: argparse.Namespace) -> None:
 
 
 def cross_scene_command(args: argparse.Namespace) -> None:
+    device = get_device("train")
+    print_device_info(device)
     splits = get_scene_splits(args.dataset)
     model_cls = MODEL_REGISTRY[args.model]
     results = train_and_eval_cross_scene(
@@ -201,6 +208,8 @@ def make_synthetic_uncertainty_data(samples: int, k: int, pred_len: int = 12):
 
 
 def uncertainty_command(args: argparse.Namespace) -> None:
+    device = get_device("train")
+    print_device_info(device)
     preds_k, gts, probs = make_synthetic_uncertainty_data(samples=64, k=args.samples)
     metrics = compute_uncertainty_metrics(preds_k, gts, probs)
     aggregated = aggregate_uncertainty([metrics])
@@ -220,6 +229,8 @@ def make_synthetic_controllability_data(batch: int = 32, pred_len: int = 12):
 
 
 def controllability_command(args: argparse.Namespace) -> None:
+    device = get_device("train")
+    print_device_info(device)
     orig, gts = make_synthetic_controllability_data()
     edited = apply_edit_rule(orig, args.rule)
     metrics = controllability_metrics(orig, edited, gts, args.rule)
@@ -233,6 +244,8 @@ def controllability_command(args: argparse.Namespace) -> None:
 
 
 def ablation_command(args: argparse.Namespace) -> None:
+    device = get_device("train")
+    print_device_info(device)
     dataset = build_synthetic_token_dataset()
     grid = ablation_grid()
     results = train_and_eval_ablation(grid=grid, dataset=dataset, epochs=args.epochs)

@@ -9,7 +9,6 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from sitpath_eval.models.sitpath_gru import SitPathGRU
-from sitpath_eval.tokens.tokenizer import SitPathTokenizer
 from sitpath_eval.tokens.vocab import Vocabulary
 from sitpath_eval.train.eval_metrics import aggregate_metrics
 from sitpath_eval.train.metrics import compute_metrics, minade_k

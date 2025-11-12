@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from sitpath_eval.cli import eval_cli
@@ -8,12 +7,15 @@ from sitpath_eval.train.eval_ablation import (
     save_ablation_table,
     train_and_eval_ablation,
 )
+from sitpath_eval.utils.device import get_device
+
+DEVICE = get_device("test")  # dynamic device selection for safe testing
 
 
 def make_dataset():
     torch.manual_seed(0)
-    obs = torch.randint(0, 16, (10, 8))
-    targets = torch.randint(0, 16, (10, 12))
+    obs = torch.randint(0, 16, (10, 8), device=DEVICE)
+    targets = torch.randint(0, 16, (10, 12), device=DEVICE)
     return torch.utils.data.TensorDataset(obs, targets)
 
 
@@ -41,7 +43,14 @@ def test_aggregate_ablation_keys():
 
 
 def test_save_ablation_table_outputs(tmp_path):
-    data = {(8, 3, True, "on"): {"ade": {"mean": 1.0}, "fde": {"mean": 2.0}, "miss_rate": {"mean": 0.1}}}
+    data = {
+        (8, 3, True, "on"): {
+            "ade": {"mean": 1.0},
+            "fde": {"mean": 2.0},
+            "minade_k": {"mean": 1.5},
+            "miss_rate": {"mean": 0.1},
+        }
+    }
     csv_path = tmp_path / "ablation.csv"
     tex_path = tmp_path / "ablation.tex"
     save_ablation_table(data, csv_path, tex_path)

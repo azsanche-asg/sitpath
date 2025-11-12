@@ -18,6 +18,7 @@ from sitpath_eval.models import (
 )
 from sitpath_eval.tokens import Vocabulary
 from sitpath_eval.tokens.tokenizer import SitPathTokenizer
+from sitpath_eval.utils.device import get_device, print_device_info
 from sitpath_eval.train.fairness import (
     assert_capacity_parity,
     count_trainable_params,
@@ -111,7 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def train_command(args: argparse.Namespace) -> None:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_device("train")
+    print_device_info(device)
     spec = MODEL_SPECS[args.model]
     kind = spec["kind"]
     is_token_model = kind == "token"
@@ -212,7 +214,8 @@ def eval_command(args: argparse.Namespace) -> None:
     model_path = MODEL_DIR / f"{args.model}.pt"
     if not model_path.exists():
         raise FileNotFoundError(f"Model checkpoint not found for {args.model}. Run train first.")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_device("train")
+    print_device_info(device)
     spec = MODEL_SPECS[args.model]
     kind = spec["kind"]
     is_token_model = kind == "token"

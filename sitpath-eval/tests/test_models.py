@@ -1,17 +1,20 @@
 import torch
 
 from sitpath_eval.models import CoordGRU, CoordTransformer
+from sitpath_eval.utils.device import get_device
+
+DEVICE = get_device("test")  # dynamic device selection for safe testing
 
 
 def make_observations(batch=2, obs_len=8):
     torch.manual_seed(0)
-    return torch.randn(batch, obs_len, 2)
+    return torch.randn(batch, obs_len, 2, device=DEVICE)
 
 
 def test_models_forward_and_shapes():
     obs = make_observations()
-    gru = CoordGRU()
-    transformer = CoordTransformer()
+    gru = CoordGRU().to(DEVICE)
+    transformer = CoordTransformer().to(DEVICE)
 
     out_gru = gru(obs)
     out_trans = transformer(obs)
@@ -28,10 +31,10 @@ def test_models_forward_and_shapes():
 
 def test_models_backward_pass():
     obs = make_observations()
-    target = torch.zeros(2, 12, 2)
+    target = torch.zeros(2, 12, 2, device=DEVICE)
 
-    gru = CoordGRU()
-    transformer = CoordTransformer()
+    gru = CoordGRU().to(DEVICE)
+    transformer = CoordTransformer().to(DEVICE)
 
     out_gru = gru(obs)
     loss_gru = torch.nn.functional.mse_loss(out_gru, target)

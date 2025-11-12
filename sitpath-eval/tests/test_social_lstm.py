@@ -2,18 +2,21 @@ import torch
 
 from sitpath_eval.models.coord_gru import CoordGRU
 from sitpath_eval.models.social_lstm import SocialLSTM
+from sitpath_eval.utils.device import get_device
+
+DEVICE = get_device("test")  # dynamic device selection for safe testing
 
 
 def test_social_lstm_forward_and_shape():
-    obs = torch.rand(4, 8, 2)
-    model = SocialLSTM()
+    obs = torch.rand(4, 8, 2, device=DEVICE)
+    model = SocialLSTM().to(DEVICE)
     out = model(obs)
     assert out.shape == (4, 12, 2)
 
 
 def test_social_lstm_gradients_and_capacity():
-    obs = torch.rand(4, 8, 2)
-    model = SocialLSTM()
+    obs = torch.rand(4, 8, 2, device=DEVICE)
+    model = SocialLSTM().to(DEVICE)
     out = model(obs)
     loss = out.mean()
     loss.backward()
@@ -27,9 +30,9 @@ def test_social_lstm_gradients_and_capacity():
 
 
 def test_social_lstm_pooling_radius_zero_matches_independent():
-    obs = torch.rand(2, 8, 2)
-    social_model = SocialLSTM(pooling_radius=0.0)
-    coord_model = CoordGRU()
+    obs = torch.rand(2, 8, 2, device=DEVICE)
+    social_model = SocialLSTM(pooling_radius=0.0).to(DEVICE)
+    coord_model = CoordGRU().to(DEVICE)
     social_out = social_model(obs)
     coord_out = coord_model(obs)
     # Outputs need only be statistically similar, not identical

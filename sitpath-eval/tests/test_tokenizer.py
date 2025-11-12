@@ -7,6 +7,9 @@ from sitpath_eval.tokens import (
     decode_tokens,
     precompute_tokens,
 )
+from sitpath_eval.utils.device import get_device
+
+DEVICE = get_device("test")  # dynamic device selection for safe testing
 
 
 def make_tokenizer(M=8, R=5.0, B=4):
@@ -35,7 +38,7 @@ def test_vocabulary_roundtrip():
 def test_precompute_tokens_creates_npz(tmp_path):
     tokenizer, _ = make_tokenizer()
     traj = np.stack([np.arange(6), np.arange(6)], axis=1).astype(np.float32)
-    dataset = [{"pos": torch.tensor(traj)}]
+    dataset = [{"pos": torch.tensor(traj, device=DEVICE)}]
     out_path = tmp_path / "cache" / "tokens.npz"
 
     precompute_tokens(dataset, tokenizer, str(out_path))

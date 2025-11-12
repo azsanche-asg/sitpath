@@ -11,12 +11,15 @@ from sitpath_eval.train.eval_data_efficiency import (
     train_and_evaluate,
 )
 from sitpath_eval.models.coord_gru import CoordGRU
+from sitpath_eval.utils.device import get_device
+
+DEVICE = get_device("test")  # dynamic device selection for safe testing
 
 
 def make_dataset(n=20):
     torch.manual_seed(0)
-    obs = torch.randn(n, 8, 2)
-    targets = torch.randn(n, 12, 2)
+    obs = torch.randn(n, 8, 2, device=DEVICE)
+    targets = torch.randn(n, 12, 2, device=DEVICE)
     return torch.utils.data.TensorDataset(obs, targets)
 
 

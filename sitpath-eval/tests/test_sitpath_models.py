@@ -1,18 +1,21 @@
 import torch
 
 from sitpath_eval.models import SitPathGRU, SitPathTransformer
+from sitpath_eval.utils.device import get_device
+
+DEVICE = get_device("test")  # dynamic device selection for safe testing
 
 
 def random_tokens(batch=2, seq_len=8, vocab_size=32):
     torch.manual_seed(0)
-    return torch.randint(0, vocab_size, (batch, seq_len))
+    return torch.randint(0, vocab_size, (batch, seq_len), device=DEVICE)
 
 
 def test_sitpath_models_forward_and_shapes():
     tokens = random_tokens()
 
-    gru = SitPathGRU(vocab_size=32)
-    trans = SitPathTransformer(vocab_size=32)
+    gru = SitPathGRU(vocab_size=32).to(DEVICE)
+    trans = SitPathTransformer(vocab_size=32).to(DEVICE)
 
     logits_gru = gru(tokens)
     logits_trans = trans(tokens)
@@ -23,10 +26,10 @@ def test_sitpath_models_forward_and_shapes():
 
 def test_sitpath_models_sampling_and_gradients():
     tokens = random_tokens()
-    target = torch.zeros(2, 12, 32)
+    target = torch.zeros(2, 12, 32, device=DEVICE)
 
-    gru = SitPathGRU(vocab_size=32)
-    trans = SitPathTransformer(vocab_size=32)
+    gru = SitPathGRU(vocab_size=32).to(DEVICE)
+    trans = SitPathTransformer(vocab_size=32).to(DEVICE)
 
     samples_gru = gru.sample(tokens, K=3)
     samples_trans = trans.sample(tokens, K=3)
