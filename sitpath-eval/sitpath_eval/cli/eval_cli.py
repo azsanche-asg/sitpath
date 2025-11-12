@@ -31,6 +31,13 @@ from sitpath_eval.train.eval_controllability import (
     apply_edit_rule,
     controllability_metrics,
 )
+from sitpath_eval.train.eval_ablation import (
+    ablation_grid,
+    aggregate_ablation,
+    build_synthetic_token_dataset,
+    save_ablation_table,
+    train_and_eval_ablation,
+)
 
 
 def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
@@ -109,6 +116,12 @@ def build_parser() -> argparse.ArgumentParser:
     ctrl_parser.add_argument("--rule", choices=["avoid_front", "keep_right", "slow_down"], default="avoid_front")
     ctrl_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
     ctrl_parser.add_argument("--outdir", default="artifacts/tables")
+
+    abl_parser = subparsers.add_parser("ablation", help="Tokenizer ablation sweeps.")
+    abl_parser.add_argument("--model", choices=["sitpath_gru"], default="sitpath_gru")
+    abl_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
+    abl_parser.add_argument("--outdir", default="artifacts/tables")
+    abl_parser.add_argument("--epochs", type=int, default=3)
     return parser
 
 
@@ -219,6 +232,19 @@ def controllability_command(args: argparse.Namespace) -> None:
     print(f"[sitpath-eval] Saved controllability evaluation to {out_dir}")
 
 
+def ablation_command(args: argparse.Namespace) -> None:
+    dataset = build_synthetic_token_dataset()
+    grid = ablation_grid()
+    results = train_and_eval_ablation(grid=grid, dataset=dataset, epochs=args.epochs)
+    aggregated = aggregate_ablation(results)
+    out_dir = Path(args.outdir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"ablation_{args.model}_{args.dataset}.csv"
+    tex_path = out_dir / f"ablation_{args.model}_{args.dataset}.tex"
+    save_ablation_table(aggregated, csv_path, tex_path)
+    print(f"[sitpath-eval] Saved ablation results to {out_dir}")
+
+
 def main(argv: List[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -232,6 +258,8 @@ def main(argv: List[str] | None = None) -> None:
         uncertainty_command(args)
     elif args.command == "controllability":
         controllability_command(args)
+    elif args.command == "ablation":
+        ablation_command(args)
     else:
         parser.error("Unknown command")
 
