@@ -10,7 +10,10 @@ device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def make_observations(batch=2, obs_len=8):
+    import torch
     torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.is_available = lambda: False  # prevent cuda.manual_seed_all
     return torch.randn(batch, obs_len, 2, device=device)
 
 

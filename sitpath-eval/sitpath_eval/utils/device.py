@@ -1,4 +1,6 @@
 import os
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")  # disable CUDA for tests unless re-enabled
+
 import sys
 
 import torch
@@ -23,10 +25,17 @@ def get_device(mode: str = "auto") -> torch.device:
             mode = "train"
 
     if mode == "test":
+        device = torch.device("cpu")
+    elif mode == "train":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
+
+    if "pytest" in sys.modules and torch.cuda.is_available():
+        # force CPU even if CUDA_VISIBLE_DEVICES was ignored
         return torch.device("cpu")
-    if mode == "train":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    return torch.device("cpu")
+
+    return device
 
 
 def print_device_info(device: torch.device) -> None:

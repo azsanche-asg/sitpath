@@ -20,7 +20,10 @@ device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def make_dataset(n=20):
+    import torch
     torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.is_available = lambda: False  # prevent cuda.manual_seed_all
     obs = torch.randn(n, 8, 2, device=device)
     targets = torch.randn(n, 12, 2, device=device)
     return torch.utils.data.TensorDataset(obs, targets)

@@ -10,7 +10,10 @@ device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def random_tokens(batch=2, seq_len=8, vocab_size=32):
+    import torch
     torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.is_available = lambda: False  # prevent cuda.manual_seed_all
     return torch.randint(0, vocab_size, (batch, seq_len), device=device)
 
 
