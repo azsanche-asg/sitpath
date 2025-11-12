@@ -30,6 +30,10 @@ def expected_calibration_error(probs: np.ndarray, labels: np.ndarray, n_bins: in
 
 
 def diversity_at_k(samples: np.ndarray, mr_mask: Optional[np.ndarray] = None) -> float:
+    samples = np.asarray(samples)
+    # Accepts (B,K,2) or (B,K,T,2); uses final step if 4D
+    if samples.ndim == 4:
+        samples = samples[:, :, -1, :]
     batch, k, _ = samples.shape
     dists = []
     for i in range(batch):
