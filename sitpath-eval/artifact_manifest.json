@@ -1,0 +1,53 @@
+{
+  "artifacts": [
+    {
+      "path": "artifacts/tables/core_metrics.csv",
+      "type": "table",
+      "description": "Aggregated ADE/FDE/MR/minADEₖ core metrics across models",
+      "hash": "<auto-fill with sha256 at save time>"
+    },
+    {
+      "path": "artifacts/tables/data_efficiency.csv",
+      "type": "table",
+      "description": "Performance vs train-data fraction"
+    },
+    {
+      "path": "artifacts/tables/cross_scene.csv",
+      "type": "table",
+      "description": "Cross-scene generalization results"
+    },
+    {
+      "path": "artifacts/tables/uncertainty.csv",
+      "type": "table",
+      "description": "Uncertainty and diversity metrics (NLL, ECE, Diversity@K)"
+    },
+    {
+      "path": "artifacts/tables/controllability.csv",
+      "type": "table",
+      "description": "Controllability metrics: CSR, GR, ΔADE"
+    },
+    {
+      "path": "artifacts/tables/ablation.csv",
+      "type": "table",
+      "description": "Tokenizer ablation study (M/R/collapse/tempo)"
+    },
+    {
+      "path": "artifacts/figs/",
+      "type": "directory",
+      "description": "All generated figures (PDF plots for paper)"
+    },
+    {
+      "path": "artifacts/models/",
+      "type": "directory",
+      "description": "Saved PyTorch model checkpoints (.pt)"
+    },
+    {
+      "path": "artifacts/tokens/vocab.json",
+      "type": "vocabulary",
+      "description": "Final SitPath token dictionary"
+    }
+  ],
+  "generated_by": "notebooks/run_all.ipynb",
+  "timestamp": "<auto-insert datetime>",
+  "notes": "Manifest auto-generated at end of pipeline for reproducibility."
+}

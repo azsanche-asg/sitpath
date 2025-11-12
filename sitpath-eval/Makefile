@@ -10,3 +10,6 @@ test:
 
 clean:
 	rm -rf .pytest_cache build dist *.egg-info
+
+manifest:
+	python tools/update_manifest.py
