@@ -9,7 +9,7 @@ from typing import Dict, List
 import numpy as np
 import torch
 
-from sitpath_eval.models import CoordGRU, CoordTransformer, SocialLSTM
+from sitpath_eval.models import CoordGRU, CoordTransformer, SitPathTransformer, SocialLSTM
 from sitpath_eval.train.eval_metrics import aggregate_metrics, save_metrics_table
 from sitpath_eval.train.eval_data_efficiency import (
     aggregate_by_fraction,
@@ -21,6 +21,10 @@ from sitpath_eval.train.eval_cross_scene import (
     get_scene_splits,
     save_cross_scene_table,
     train_and_eval_cross_scene,
+)
+from sitpath_eval.train.eval_uncertainty import (
+    aggregate_uncertainty,
+    compute_uncertainty_metrics,
 )
 
 
@@ -80,6 +84,16 @@ def build_parser() -> argparse.ArgumentParser:
     cross_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
     cross_parser.add_argument("--outdir", default="artifacts/tables")
     cross_parser.add_argument("--epochs", type=int, default=5)
+
+    unc_parser = subparsers.add_parser("uncertainty", help="Uncertainty and diversity metrics.")
+    unc_parser.add_argument(
+        "--model",
+        choices=["coord_gru", "sitpath_transformer"],
+        default="sitpath_transformer",
+    )
+    unc_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
+    unc_parser.add_argument("--samples", type=int, default=20)
+    unc_parser.add_argument("--outdir", default="artifacts/tables")
     return parser
 
 
@@ -107,6 +121,7 @@ def make_synthetic_coord_dataset(obs_len: int = 8, pred_len: int = 12, samples: 
 MODEL_REGISTRY = {
     "coord_gru": CoordGRU,
     "coord_transformer": CoordTransformer,
+    "sitpath_transformer": SitPathTransformer,
     "social_lstm": SocialLSTM,
 }
 
@@ -148,6 +163,26 @@ def cross_scene_command(args: argparse.Namespace) -> None:
     print(f"[sitpath-eval] Saved cross-scene generalization results to {out_dir}")
 
 
+def make_synthetic_uncertainty_data(samples: int, k: int, pred_len: int = 12):
+    rng = np.random.default_rng(0)
+    preds_k = rng.normal(size=(samples, k, pred_len, 2)).astype(np.float32)
+    gts = rng.normal(size=(samples, pred_len, 2)).astype(np.float32)
+    probs = rng.uniform(size=(samples,))
+    return preds_k, gts, probs
+
+
+def uncertainty_command(args: argparse.Namespace) -> None:
+    preds_k, gts, probs = make_synthetic_uncertainty_data(samples=64, k=args.samples)
+    metrics = compute_uncertainty_metrics(preds_k, gts, probs)
+    aggregated = aggregate_uncertainty([metrics])
+    out_dir = Path(args.outdir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"uncertainty_{args.model}_{args.dataset}.csv"
+    tex_path = out_dir / f"uncertainty_{args.model}_{args.dataset}.tex"
+    save_metrics_table(aggregated, csv_path, tex_path)
+    print(f"[sitpath-eval] Saved uncertainty/diversity results to {out_dir}")
+
+
 def main(argv: List[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -157,6 +192,8 @@ def main(argv: List[str] | None = None) -> None:
         data_efficiency_command(args)
     elif args.command == "cross_scene":
         cross_scene_command(args)
+    elif args.command == "uncertainty":
+        uncertainty_command(args)
     else:
         parser.error("Unknown command")
 
