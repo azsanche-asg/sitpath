@@ -7,8 +7,15 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
+import torch
 
+from sitpath_eval.models import CoordGRU, CoordTransformer, SocialLSTM
 from sitpath_eval.train.eval_metrics import aggregate_metrics, save_metrics_table
+from sitpath_eval.train.eval_data_efficiency import (
+    aggregate_by_fraction,
+    save_efficiency_table,
+    train_and_evaluate,
+)
 
 
 def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
@@ -42,6 +49,21 @@ def build_parser() -> argparse.ArgumentParser:
     metrics_parser = subparsers.add_parser("metrics", help="Aggregate metric files into tables.")
     metrics_parser.add_argument("--runs", required=True, help="Glob pattern for metric files.")
     metrics_parser.add_argument("--outdir", default="artifacts/tables")
+
+    eff_parser = subparsers.add_parser("data_efficiency", help="Run data-efficiency sweeps.")
+    eff_parser.add_argument(
+        "--model",
+        choices=["coord_gru", "coord_transformer", "social_lstm"],
+        default="coord_gru",
+    )
+    eff_parser.add_argument(
+        "--fractions",
+        nargs="+",
+        default=["0.1", "0.25", "1.0"],
+        help="Data fractions to evaluate.",
+    )
+    eff_parser.add_argument("--outdir", default="artifacts/tables")
+    eff_parser.add_argument("--epochs", type=int, default=2)
     return parser
 
 
@@ -56,11 +78,49 @@ def metrics_command(args: argparse.Namespace) -> None:
     print(f"[sitpath-eval] Saved aggregated metrics to {csv_path} and {tex_path}")
 
 
+def make_synthetic_coord_dataset(obs_len: int = 8, pred_len: int = 12, samples: int = 64):
+    rng = np.random.default_rng(0)
+    seq = obs_len + pred_len
+    data = rng.normal(size=(samples, seq, 2)).astype(np.float32)
+    trajectories = data.cumsum(axis=1)
+    obs = torch.from_numpy(trajectories[:, :obs_len])
+    targets = torch.from_numpy(trajectories[:, obs_len:])
+    return torch.utils.data.TensorDataset(obs, targets)
+
+
+MODEL_REGISTRY = {
+    "coord_gru": CoordGRU,
+    "coord_transformer": CoordTransformer,
+    "social_lstm": SocialLSTM,
+}
+
+
+def data_efficiency_command(args: argparse.Namespace) -> None:
+    fractions = [float(f) for f in args.fractions]
+    dataset = make_synthetic_coord_dataset()
+    model_cls = MODEL_REGISTRY[args.model]
+    results = train_and_evaluate(
+        model_cls,
+        dataset,
+        fractions=fractions,
+        epochs=args.epochs,
+    )
+    aggregated = aggregate_by_fraction(results)
+    out_dir = Path(args.outdir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"data_efficiency_{args.model}.csv"
+    tex_path = out_dir / f"data_efficiency_{args.model}.tex"
+    save_efficiency_table(aggregated, csv_path, tex_path)
+    print(f"[sitpath-eval] Saved data-efficiency results to {out_dir}")
+
+
 def main(argv: List[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "metrics":
         metrics_command(args)
+    elif args.command == "data_efficiency":
+        data_efficiency_command(args)
     else:
         parser.error("Unknown command")
 
