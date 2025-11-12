@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Tuple
-
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -114,7 +114,8 @@ def build_parser() -> argparse.ArgumentParser:
 def train_command(args: argparse.Namespace) -> None:
     device = get_device("train")
     print_device_info(device)
-    spec = MODEL_SPECS[args.model]
+    model_name = args.model
+    spec = MODEL_SPECS[model_name]
     kind = spec["kind"]
     is_token_model = kind == "token"
     is_raster_model = kind == "raster"
@@ -184,6 +185,9 @@ def train_command(args: argparse.Namespace) -> None:
             "single-model run; use --enforce_parity for paired paper experiments."
         )
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    log_dir = Path("artifacts/logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"{model_name}_seed0.json"
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -204,8 +208,11 @@ def train_command(args: argparse.Namespace) -> None:
             loss.backward()
             optimizer.step()
         print(f"[sitpath-eval] Epoch {epoch} loss {loss.item():.4f}")
+        with open(log_file, "a") as f:
+            json.dump({"epoch": epoch, "train_loss": float(loss), "model": model_name}, f)
+            f.write("\n")
 
-    model_path = MODEL_DIR / f"{args.model}.pt"
+    model_path = MODEL_DIR / f"{model_name}.pt"
     torch.save(model.state_dict(), model_path)
     print(f"[sitpath-eval] saved model to {model_path}")
 
