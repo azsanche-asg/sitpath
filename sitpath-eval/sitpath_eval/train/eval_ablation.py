@@ -12,6 +12,7 @@ from sitpath_eval.models.sitpath_gru import SitPathGRU
 from sitpath_eval.tokens.vocab import Vocabulary
 from sitpath_eval.train.eval_metrics import aggregate_metrics
 from sitpath_eval.train.metrics import compute_metrics, minade_k
+from sitpath_eval.utils.device import get_device
 
 
 def ablation_grid():
@@ -52,7 +53,7 @@ def train_and_eval_ablation(model_cls=SitPathGRU, dataset=None, grid=None, **tra
     if dataset is None:
         dataset = build_synthetic_token_dataset()
     results = []
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_device("train")
     loader = DataLoader(dataset, batch_size=train_kwargs.get("batch_size", 16), shuffle=True)
 
     for cfg in grid:

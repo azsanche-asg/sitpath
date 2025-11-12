@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("SITPATH_MODE", "auto")
+
 import json
 from pathlib import Path
 
@@ -13,13 +16,13 @@ from sitpath_eval.train.eval_data_efficiency import (
 from sitpath_eval.models.coord_gru import CoordGRU
 from sitpath_eval.utils.device import get_device
 
-DEVICE = get_device("test")  # dynamic device selection for safe testing
+device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def make_dataset(n=20):
     torch.manual_seed(0)
-    obs = torch.randn(n, 8, 2, device=DEVICE)
-    targets = torch.randn(n, 12, 2, device=DEVICE)
+    obs = torch.randn(n, 8, 2, device=device)
+    targets = torch.randn(n, 12, 2, device=device)
     return torch.utils.data.TensorDataset(obs, targets)
 
 

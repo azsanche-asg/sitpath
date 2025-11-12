@@ -1,16 +1,19 @@
+import os
+os.environ.setdefault("SITPATH_MODE", "auto")
+
 import torch
 from torch.utils.data import TensorDataset
 
 from sitpath_eval.cli import train_cli
 from sitpath_eval.utils.device import get_device
 
-DEVICE = get_device("test")  # dynamic device selection for safe testing
+device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def test_train_cli_dry_run(monkeypatch, tmp_path, capsys):
     def tiny_dataset(*args, **kwargs):
-        obs = torch.zeros(2, 8, 2, device=DEVICE)
-        targets = torch.zeros(2, 12, 2, device=DEVICE)
+        obs = torch.zeros(2, 8, 2, device=device)
+        targets = torch.zeros(2, 12, 2, device=device)
         ds = TensorDataset(obs, targets)
         return ds, ds
 

@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, Subset
 from sitpath_eval.models.coord_gru import CoordGRU
 from sitpath_eval.train.metrics import compute_metrics
 from sitpath_eval.train.eval_metrics import aggregate_metrics
+from sitpath_eval.utils.device import get_device
 
 
 def subsample_dataset(dataset, fraction: float, seed: int = 42):
@@ -25,7 +26,7 @@ def train_and_evaluate(model_cls, dataset, fractions=None, **train_kwargs):
     if fractions is None:
         fractions = [0.1, 0.25, 1.0]
     results = []
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_device("train")
     epochs = train_kwargs.get("epochs", 5)
     batch_size = train_kwargs.get("batch_size", 16)
 

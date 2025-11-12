@@ -1,10 +1,13 @@
+import os
+os.environ.setdefault("SITPATH_MODE", "auto")
+
 import torch
 
 from sitpath_eval.data import ETHUCYDataset, make_synthetic_ethucy, split_dataset
 from sitpath_eval.data.eth_ucy import OBS_LEN, PRED_LEN
 from sitpath_eval.utils.device import get_device
 
-TEST_DEVICE = get_device("test")  # dynamic device selection for safe testing
+device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def test_split_dataset_preserves_counts():
@@ -24,5 +27,5 @@ def test_ethucy_dataset_returns_sequence_tensors():
     expected_len = OBS_LEN + PRED_LEN
 
     assert sample["pos"].shape == (expected_len, 2)
+    assert sample["pos"].device.type == device.type
     assert sample["pos"].dtype == torch.float32
-    assert sample["pos"].device == TEST_DEVICE

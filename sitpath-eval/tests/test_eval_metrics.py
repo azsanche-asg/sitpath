@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("SITPATH_MODE", "auto")
+
 import json
 from pathlib import Path
 

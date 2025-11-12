@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("SITPATH_MODE", "auto")
+
 import pytest
 
 from sitpath_eval.cli import eval_cli

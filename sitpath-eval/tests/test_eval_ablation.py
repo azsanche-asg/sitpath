@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("SITPATH_MODE", "auto")
+
 import torch
 
 from sitpath_eval.cli import eval_cli
@@ -9,13 +12,13 @@ from sitpath_eval.train.eval_ablation import (
 )
 from sitpath_eval.utils.device import get_device
 
-DEVICE = get_device("test")  # dynamic device selection for safe testing
+device = get_device("auto")  # dynamic device selection for safe testing
 
 
 def make_dataset():
     torch.manual_seed(0)
-    obs = torch.randint(0, 16, (10, 8), device=DEVICE)
-    targets = torch.randint(0, 16, (10, 12), device=DEVICE)
+    obs = torch.randint(0, 16, (10, 8), device=device)
+    targets = torch.randint(0, 16, (10, 12), device=device)
     return torch.utils.data.TensorDataset(obs, targets)
 
 
