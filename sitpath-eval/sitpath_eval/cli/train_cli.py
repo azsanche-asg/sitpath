@@ -6,19 +6,32 @@ from typing import Tuple
 
 import numpy as np
 import torch
-from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from sitpath_eval.models import CoordGRU, CoordTransformer
 from sitpath_eval.train.metrics import compute_metrics
 
-MODEL_PATH = Path("artifacts/model.pt")
+MODEL_DIR = Path("artifacts/models")
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+MODEL_MAP = {
+    "coord_gru": CoordGRU,
+    "coord_transformer": CoordTransformer,
+}
 
 
-def make_synthetic_dataset(num_samples: int = 64, seq_len: int = 20) -> Tuple[TensorDataset, TensorDataset]:
+def make_synthetic_dataset(
+    num_samples: int = 64,
+    obs_len: int = 8,
+    pred_len: int = 12,
+) -> Tuple[TensorDataset, TensorDataset]:
     rng = np.random.default_rng(0)
-    data = rng.normal(size=(num_samples, seq_len, 2)).astype(np.float32)
-    targets = data.cumsum(axis=1)
-    tensor_x = torch.from_numpy(data)
+    total_len = obs_len + pred_len
+    data = rng.normal(size=(num_samples, total_len, 2)).astype(np.float32)
+    trajectories = data.cumsum(axis=1)
+    obs = trajectories[:, :obs_len]
+    targets = trajectories[:, obs_len:]
+    tensor_x = torch.from_numpy(obs)
     tensor_y = torch.from_numpy(targets)
     midpoint = num_samples // 2
     train_ds = TensorDataset(tensor_x[:midpoint], tensor_y[:midpoint])
@@ -34,8 +47,10 @@ def build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--epochs", type=int, default=3)
     train_p.add_argument("--batch-size", type=int, default=16)
     train_p.add_argument("--lr", type=float, default=1e-3)
+    train_p.add_argument("--model", choices=list(MODEL_MAP.keys()), default="coord_gru")
 
-    subparsers.add_parser("eval", help="Evaluate saved model.")
+    eval_p = subparsers.add_parser("eval", help="Evaluate saved model.")
+    eval_p.add_argument("--model", choices=list(MODEL_MAP.keys()), default="coord_gru")
     return parser
 
 
@@ -45,47 +60,49 @@ def train_command(args: argparse.Namespace) -> None:
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size)
 
-    model = nn.Linear(2, 2).to(device)
-    loss_fn = nn.MSELoss()
+    ModelCls = MODEL_MAP[args.model]
+    model = ModelCls().to(device)
+    loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     for epoch in range(1, args.epochs + 1):
         model.train()
-        for x, y in train_loader:
-            x = x.to(device)
-            y = y.to(device)
+        for obs, targets in train_loader:
+            obs = obs.to(device)
+            targets = targets.to(device)
             optimizer.zero_grad()
-            preds = model(x)
-            loss = loss_fn(preds, y)
+            preds = model(obs)
+            loss = loss_fn(preds, targets)
             loss.backward()
             optimizer.step()
-        print(f"[sitpath-eval] epoch {epoch} loss {loss.item():.4f}")
+        print(f"[sitpath-eval] Epoch {epoch} loss {loss.item():.4f}")
 
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), MODEL_PATH)
-    print(f"[sitpath-eval] saved model to {MODEL_PATH}")
+    model_path = MODEL_DIR / f"{args.model}.pt"
+    torch.save(model.state_dict(), model_path)
+    print(f"[sitpath-eval] saved model to {model_path}")
 
 
 def eval_command(args: argparse.Namespace) -> None:
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError("Model checkpoint not found. Run train first.")
-
+    model_path = MODEL_DIR / f"{args.model}.pt"
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model checkpoint not found for {args.model}. Run train first.")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _, val_ds = make_synthetic_dataset()
     val_loader = DataLoader(val_ds, batch_size=16)
-    model = nn.Linear(2, 2).to(device)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+    ModelCls = MODEL_MAP[args.model]
+    model = ModelCls().to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
     preds_list = []
     targets_list = []
     with torch.no_grad():
-        for x, y in val_loader:
-            x = x.to(device)
-            y = y.to(device)
-            preds = model(x)
+        for obs, targets in val_loader:
+            obs = obs.to(device)
+            targets = targets.to(device)
+            preds = model(obs)
             preds_list.append(preds.cpu().numpy())
-            targets_list.append(y.cpu().numpy())
+            targets_list.append(targets.cpu().numpy())
 
     preds = np.concatenate(preds_list, axis=0)
     targets = np.concatenate(targets_list, axis=0)
