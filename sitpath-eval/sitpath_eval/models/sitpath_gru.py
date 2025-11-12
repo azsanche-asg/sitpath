@@ -26,6 +26,9 @@ class SitPathGRU(BaseTrajectoryModel):
     def forward(self, tokens: torch.Tensor) -> torch.Tensor:
         if tokens.numel() == 0:
             raise ValueError("Tokens input must be non-empty.")
+        # clamp synthetic token ids to valid range (for ablation safety)
+        vocab_size = self.embedding.num_embeddings
+        tokens = tokens % vocab_size
         emb = self.embedding(tokens)
         _, hidden = self.gru(emb)
         hidden_state = hidden
