@@ -44,7 +44,12 @@ def controllability_metrics(orig: np.ndarray, edited: np.ndarray, gts: np.ndarra
     gr = 1 - np.linalg.norm(edited_end - orig_end, axis=-1).mean() / (
         np.linalg.norm(orig_end - gts[:, -1], axis=-1).mean() + 1e-6
     )
-    delta_ade = ade(edited, gts) - ade(orig, gts)
+    # Ensure equal pred_len before ADE computation
+    min_len = min(orig.shape[1], edited.shape[1], gts.shape[1])
+    orig_aligned = orig[:, :min_len, :]
+    edited_aligned = edited[:, :min_len, :]
+    gts_aligned = gts[:, :min_len, :]
+    delta_ade = ade(edited_aligned, gts_aligned) - ade(orig_aligned, gts_aligned)
     return {"rule": rule, "csr": csr, "gr": gr, "delta_ade": delta_ade}
 
 
