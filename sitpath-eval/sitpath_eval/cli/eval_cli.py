@@ -16,6 +16,12 @@ from sitpath_eval.train.eval_data_efficiency import (
     save_efficiency_table,
     train_and_evaluate,
 )
+from sitpath_eval.train.eval_cross_scene import (
+    aggregate_cross_scene,
+    get_scene_splits,
+    save_cross_scene_table,
+    train_and_eval_cross_scene,
+)
 
 
 def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
@@ -64,6 +70,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     eff_parser.add_argument("--outdir", default="artifacts/tables")
     eff_parser.add_argument("--epochs", type=int, default=2)
+
+    cross_parser = subparsers.add_parser("cross_scene", help="Leave-one-scene-out evaluation.")
+    cross_parser.add_argument(
+        "--model",
+        choices=["coord_gru", "coord_transformer", "social_lstm"],
+        default="coord_gru",
+    )
+    cross_parser.add_argument("--dataset", choices=["eth_ucy", "sdd_mini"], default="eth_ucy")
+    cross_parser.add_argument("--outdir", default="artifacts/tables")
+    cross_parser.add_argument("--epochs", type=int, default=5)
     return parser
 
 
@@ -114,6 +130,24 @@ def data_efficiency_command(args: argparse.Namespace) -> None:
     print(f"[sitpath-eval] Saved data-efficiency results to {out_dir}")
 
 
+def cross_scene_command(args: argparse.Namespace) -> None:
+    splits = get_scene_splits(args.dataset)
+    model_cls = MODEL_REGISTRY[args.model]
+    results = train_and_eval_cross_scene(
+        model_cls,
+        args.dataset,
+        splits,
+        epochs=args.epochs,
+    )
+    aggregated = aggregate_cross_scene(results)
+    out_dir = Path(args.outdir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"cross_scene_{args.model}_{args.dataset}.csv"
+    tex_path = out_dir / f"cross_scene_{args.model}_{args.dataset}.tex"
+    save_cross_scene_table(aggregated, csv_path, tex_path)
+    print(f"[sitpath-eval] Saved cross-scene generalization results to {out_dir}")
+
+
 def main(argv: List[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -121,6 +155,8 @@ def main(argv: List[str] | None = None) -> None:
         metrics_command(args)
     elif args.command == "data_efficiency":
         data_efficiency_command(args)
+    elif args.command == "cross_scene":
+        cross_scene_command(args)
     else:
         parser.error("Unknown command")
 
