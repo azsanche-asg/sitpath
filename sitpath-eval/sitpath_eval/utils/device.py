@@ -1,5 +1,5 @@
 import os
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")  # disable CUDA for tests unless re-enabled
+#os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")  # disable CUDA for tests unless re-enabled
 
 import sys
 
