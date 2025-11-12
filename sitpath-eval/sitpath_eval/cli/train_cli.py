@@ -9,6 +9,11 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from sitpath_eval.models import CoordGRU, CoordTransformer
+from sitpath_eval.train.fairness import (
+    assert_capacity_parity,
+    count_trainable_params,
+    try_count_flops,
+)
 from sitpath_eval.train.metrics import compute_metrics
 
 MODEL_DIR = Path("artifacts/models")
@@ -48,6 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     train_p.add_argument("--batch-size", type=int, default=16)
     train_p.add_argument("--lr", type=float, default=1e-3)
     train_p.add_argument("--model", choices=list(MODEL_MAP.keys()), default="coord_gru")
+    train_p.add_argument("--enforce_parity", action="store_true")
 
     eval_p = subparsers.add_parser("eval", help="Evaluate saved model.")
     eval_p.add_argument("--model", choices=list(MODEL_MAP.keys()), default="coord_gru")
@@ -62,6 +68,38 @@ def train_command(args: argparse.Namespace) -> None:
 
     ModelCls = MODEL_MAP[args.model]
     model = ModelCls().to(device)
+    if args.enforce_parity:
+        baseline_name = "coord_gru" if args.model != "coord_gru" else "coord_transformer"
+        baseline_cls = MODEL_MAP[baseline_name]
+        baseline_model = baseline_cls()
+        params_ok = False
+        flops_state = "unknown"
+        base_params = count_trainable_params(baseline_model)
+        comp_params = count_trainable_params(model)
+        base_flops = try_count_flops(baseline_model)
+        comp_flops = try_count_flops(model)
+        try:
+            assert_capacity_parity(baseline_model, model)
+            params_ok = True
+            if base_flops is not None and comp_flops is not None:
+                flops_state = "true"
+            elif base_flops is None and comp_flops is None:
+                flops_state = "unknown"
+            else:
+                flops_state = "partial"
+        except AssertionError as exc:
+            print(f"[PARITY] failure: {exc}")
+            raise
+        print(
+            f"[PARITY] params_ok={'true' if params_ok else 'false'} "
+            f"flops_ok={flops_state} tol_params=2% tol_flops=5%"
+        )
+    else:
+        params = model.num_parameters()
+        print(
+            f"[PARITY] model={args.model} params={params} "
+            "single-model run; use --enforce_parity for paired paper experiments."
+        )
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 

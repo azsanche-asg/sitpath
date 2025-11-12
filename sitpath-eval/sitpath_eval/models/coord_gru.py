@@ -7,9 +7,21 @@ from sitpath_eval.models.base_model import BaseTrajectoryModel
 
 
 class CoordGRU(BaseTrajectoryModel):
-    def __init__(self, obs_len: int = 8, pred_len: int = 12, hidden_size: int = 64):
+    def __init__(
+        self,
+        obs_len: int = 8,
+        pred_len: int = 12,
+        hidden_size: int = 64,
+        num_layers: int = 1,
+        **kwargs,
+    ):
         super().__init__(obs_len, pred_len)
-        self.gru = nn.GRU(input_size=2, hidden_size=hidden_size, num_layers=1, batch_first=True)
+        self.gru = nn.GRU(
+            input_size=2,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+        )
         self.head = nn.Linear(hidden_size, 2)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:

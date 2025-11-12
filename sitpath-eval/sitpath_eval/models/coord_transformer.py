@@ -18,14 +18,22 @@ def positional_encoding(seq_len: int, dim: int) -> torch.Tensor:
 
 
 class CoordTransformer(BaseTrajectoryModel):
-    def __init__(self, obs_len: int = 8, pred_len: int = 12, d_model: int = 64):
+    def __init__(
+        self,
+        obs_len: int = 8,
+        pred_len: int = 12,
+        d_model: int = 64,
+        nhead: int = 8,
+        num_layers: int = 2,
+        **kwargs,
+    ):
         super().__init__(obs_len, pred_len)
         self.input_proj = nn.Linear(2, d_model)
         self.transformer = nn.Transformer(
             d_model=d_model,
-            nhead=8,
-            num_encoder_layers=2,
-            num_decoder_layers=2,
+            nhead=nhead,
+            num_encoder_layers=num_layers,
+            num_decoder_layers=num_layers,
             batch_first=True,
         )
         self.head = nn.Linear(d_model, 2)
