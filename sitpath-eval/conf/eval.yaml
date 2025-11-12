@@ -1,0 +1,9 @@
+# Config for evaluation bootstrap aggregation
+outdir: artifacts/tables
+n_boot: 1000
+alpha: 0.05
+metrics:
+  - ade
+  - fde
+  - minade_k
+  - mr
