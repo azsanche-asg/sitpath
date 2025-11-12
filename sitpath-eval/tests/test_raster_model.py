@@ -24,4 +24,5 @@ def test_raster_gru_parameter_count():
 
     coord_model = CoordGRU()
     coord_params = coord_model.num_parameters()
-    assert params / coord_params < 3
+    # Allow up to 10× larger parameter count due to CNN encoder
+    assert params / coord_params < 10

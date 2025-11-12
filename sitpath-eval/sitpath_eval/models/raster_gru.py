@@ -29,7 +29,8 @@ class RasterGRU(BaseTrajectoryModel):
             convs.append(nn.ReLU(inplace=True))
             channels = cnn_dim
         self.cnn = nn.Sequential(*convs)
-        self.fc = nn.Linear(cnn_dim * 4 * 4, hidden_size)
+        self.fc = None
+        self.hidden_size = hidden_size
         self.gru = nn.GRU(
             input_size=hidden_size,
             hidden_size=hidden_size,
@@ -45,8 +46,12 @@ class RasterGRU(BaseTrajectoryModel):
         for t in range(seq_len):
             frame = x[:, t]
             feat = self.cnn(frame)
-            feat = feat.view(batch_size, -1)
-            cnn_feats.append(torch.relu(self.fc(feat)))
+            feat_flat = feat.view(batch_size, -1)
+            if self.fc is None:
+                flat_dim = feat_flat.shape[1]
+                # Dynamic flatten size to avoid shape mismatch
+                self.fc = nn.Linear(flat_dim, self.hidden_size).to(feat.device)
+            cnn_feats.append(torch.relu(self.fc(feat_flat)))
         encoded = torch.stack(cnn_feats, dim=1)
         _, hidden = self.gru(encoded)
         preds = []
