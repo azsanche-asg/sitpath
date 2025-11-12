@@ -69,6 +69,9 @@ def train_and_eval_ablation(model_cls=SitPathGRU, dataset=None, grid=None, **tra
                 targets = targets.to(device)
                 optimizer.zero_grad()
                 logits = model(obs)
+                # clamp synthetic targets to valid range for CrossEntropyLoss safety
+                vocab_size = logits.size(-1)
+                targets = targets % vocab_size
                 loss = loss_fn(logits.view(-1, logits.size(-1)), targets.view(-1))
                 loss.backward()
                 optimizer.step()
