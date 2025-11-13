@@ -48,8 +48,15 @@ def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
     results = []
     for path in files:
         p = Path(path)
-        if p.suffix == ".json":
-            data = json.loads(p.read_text())
+        if p.suffix == ".json" or p.suffix == ".jsonl":
+            records = []
+            for line in p.read_text().splitlines():
+                if not line.strip():
+                    continue
+                records.append(json.loads(line))
+            if not records:
+                continue
+            data = records[-1]
         elif p.suffix == ".csv":
             import csv
 

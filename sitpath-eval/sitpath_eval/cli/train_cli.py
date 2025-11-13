@@ -187,7 +187,7 @@ def train_command(args: argparse.Namespace) -> None:
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     log_dir = Path("artifacts/logs")
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / f"{model_name}_seed0.json"
+    log_file = log_dir / f"{model_name}_seed0.jsonl"
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -209,8 +209,7 @@ def train_command(args: argparse.Namespace) -> None:
             optimizer.step()
         print(f"[sitpath-eval] Epoch {epoch} loss {loss.item():.4f}")
         with open(log_file, "a") as f:
-            json.dump({"epoch": epoch, "train_loss": float(loss), "model": model_name}, f)
-            f.write("\n")
+            f.write(json.dumps({"epoch": epoch, "train_loss": float(loss), "model": model_name}) + "\n")
 
     model_path = MODEL_DIR / f"{model_name}.pt"
     torch.save(model.state_dict(), model_path)
