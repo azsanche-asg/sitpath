@@ -99,21 +99,36 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="SitPath training CLI.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    default_data_root = Path(__file__).resolve().parents[2] / "sitpath-data" / "eth_ucy"
+
     train_p = subparsers.add_parser("train", help="Run a dummy training loop.")
     train_p.add_argument("--epochs", type=int, default=3)
     train_p.add_argument("--batch-size", type=int, default=16)
     train_p.add_argument("--lr", type=float, default=1e-3)
     train_p.add_argument("--model", choices=list(MODEL_SPECS.keys()), default="coord_gru")
     train_p.add_argument("--enforce_parity", action="store_true")
+    train_p.add_argument(
+        "--data-root",
+        type=str,
+        default=str(default_data_root),
+        help="Root folder with train/val/test CSVs for ETH/UCY (default: repo's sitpath-data/eth_ucy)",
+    )
 
     eval_p = subparsers.add_parser("eval", help="Evaluate saved model.")
     eval_p.add_argument("--model", choices=list(MODEL_SPECS.keys()), default="coord_gru")
+    eval_p.add_argument(
+        "--data-root",
+        type=str,
+        default=str(default_data_root),
+        help="Root folder with train/val/test CSVs for ETH/UCY (default: repo's sitpath-data/eth_ucy)",
+    )
     return parser
 
 
 def train_command(args: argparse.Namespace) -> None:
     device = get_device("train")
     print_device_info(device)
+    print(f"[sitpath-eval] Using dataset root: {args.data_root}")
     model_name = args.model
     spec = MODEL_SPECS[model_name]
     kind = spec["kind"]
@@ -222,6 +237,7 @@ def eval_command(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f"Model checkpoint not found for {args.model}. Run train first.")
     device = get_device("train")
     print_device_info(device)
+    print(f"[sitpath-eval] Using dataset root: {args.data_root}")
     spec = MODEL_SPECS[args.model]
     kind = spec["kind"]
     is_token_model = kind == "token"

@@ -15,6 +15,8 @@ If using the pre-built Colab environment:
 !bash colab_quickstart.sh
 ```
 
+Raw OpenTraj datasets (ETH, HOTEL, ZARA1, ZARA2) are stored in `sitpath-eval/datasets/`. Run `python tools/prepare_eth_ucy.py` to generate standardized CSVs under `sitpath-eval/sitpath-data/eth_ucy/` before training.
+
 ## ⚙️ Notebook Pipeline (00–06)
 
 | Notebook | Purpose | Outputs → `artifacts/` |
