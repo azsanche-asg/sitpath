@@ -42,21 +42,26 @@ from sitpath_eval.utils.device import get_device, print_device_info
 
 
 def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
-    files = glob.glob(pattern)
-    if not files:
+    paths = sorted(Path().glob(pattern))
+    if not paths:
         raise FileNotFoundError(f"No metric files matched pattern: {pattern}")
     results = []
-    for path in files:
-        p = Path(path)
-        if p.suffix == ".json" or p.suffix == ".jsonl":
+    for p in paths:
+        if p.suffix in {".json", ".jsonl"}:
             records = []
-            for line in p.read_text().splitlines():
-                if not line.strip():
-                    continue
-                records.append(json.loads(line))
+            with p.open() as fh:
+                for line in fh:
+                    if not line.strip():
+                        continue
+                    rec = json.loads(line)
+                    numeric = {k: float(v) for k, v in rec.items() if isinstance(v, (int, float))}
+                    if numeric:
+                        records.append(numeric)
             if not records:
                 continue
-            data = records[-1]
+            keys = set().union(*(r.keys() for r in records))
+            numeric_avg = {k: sum(r.get(k, 0.0) for r in records) / len(records) for k in keys}
+            results.append(numeric_avg)
         elif p.suffix == ".csv":
             import csv
 
@@ -66,9 +71,9 @@ def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
                 if not rows:
                     continue
                 data = {k: float(v) for k, v in rows[-1].items()}
+            results.append(data)
         else:
             raise ValueError(f"Unsupported file type: {p}")
-        results.append({k: float(v) for k, v in data.items()})
     return results
 
 
