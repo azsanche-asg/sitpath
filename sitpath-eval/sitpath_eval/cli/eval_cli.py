@@ -42,7 +42,8 @@ from sitpath_eval.utils.device import get_device, print_device_info
 
 
 def load_metrics_files(pattern: str) -> List[Dict[str, float]]:
-    paths = sorted(Path().glob(pattern))
+    #paths = sorted(Path().glob(pattern))
+    paths = [Path(p) for p in glob.glob(pattern)]
     if not paths:
         raise FileNotFoundError(f"No metric files matched pattern: {pattern}")
     results = []
